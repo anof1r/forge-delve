@@ -24,10 +24,6 @@ window/stretch/aspect="expand"
 
 project/assembly_name="forge-delve"
 
-[editor_plugins]
-
-enabled=PackedStringArray("res://addons/github_copilot/plugin.cfg")
-
 [physics]
 
 3d/physics_engine="Jolt Physics"

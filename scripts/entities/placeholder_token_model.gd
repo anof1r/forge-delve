@@ -1,3 +1,4 @@
+@tool
 class_name PlaceholderTokenModel
 extends TokenModel
 ## Заглушка-миниатюра из примитивов: пешка для игроков, куб с рогами для мобов.

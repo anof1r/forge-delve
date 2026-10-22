@@ -11,15 +11,6 @@ static func solid(color: Color, roughness := 0.85) -> StandardMaterial3D:
 	return material
 
 
-static func glow(color: Color, energy := 2.0) -> StandardMaterial3D:
-	var material := StandardMaterial3D.new()
-	material.albedo_color = color
-	material.emission_enabled = true
-	material.emission = color
-	material.emission_energy_multiplier = energy
-	return material
-
-
 static func box(size: Vector3, offset: Vector3, material: Material) -> MeshInstance3D:
 	var mesh := BoxMesh.new()
 	mesh.size = size

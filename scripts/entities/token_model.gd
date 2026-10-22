@@ -1,3 +1,4 @@
+@tool
 class_name TokenModel
 extends Node3D
 ## Базовый класс визуала токена. Token прыгает, выбирается и двигается, не зная,

@@ -90,14 +90,19 @@ func occupants() -> Array:
 	return _occupants.values()
 
 
-func register_occupant(token: Token, cell: Vector2i) -> void:
+func register_occupant(token: Token, cell: Vector2i) -> bool:
+	if not is_free(cell):
+		return false
 	_occupants[cell] = token
+	return true
 
 
-func move_occupant(token: Token, from: Vector2i, to: Vector2i) -> void:
-	if _occupants.get(from) == token:
-		_occupants.erase(from)
+func move_occupant(token: Token, from: Vector2i, to: Vector2i) -> bool:
+	if _occupants.get(from) != token or not is_free(to):
+		return false
+	_occupants.erase(from)
 	_occupants[to] = token
+	return true
 
 
 func unregister_occupant(token: Token) -> void:

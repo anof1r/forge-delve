@@ -21,7 +21,7 @@ const DEFAULTS := {
 }
 
 const _TORCH_LIGHT := {
-	"color": Color("ffa24a"), "energy": 2.2, "range": 6.0,
+	"color": Color("ffa24a"), "energy": 1.6, "range": 5.5,
 	"offset": Vector3(0.0, 0.3, 0.2), "shadow": true, "flame": 0.07,
 }
 
@@ -37,7 +37,7 @@ const _ENTRIES := {
 	"Bed_Twin2": {"footprint": Vector2i(1, 2)},
 	"Torch_Metal": {"blocks": false, "light": _TORCH_LIGHT},
 	"Lantern_Wall": {"blocks": false, "light": {
-		"color": Color("ffb85c"), "energy": 2.0, "range": 6.0,
+		"color": Color("ffb85c"), "energy": 1.5, "range": 5.5,
 		"offset": Vector3(0.0, 0.3, 0.25), "shadow": true, "flame": 0.08,
 	}},
 	"CandleStick": {"blocks": false, "light": _CANDLE_LIGHT},

@@ -1,6 +1,8 @@
 @tool
 class_name Prop
 extends Node3D
+
+const FIRE_SCENE := preload("res://scenes/effects/fire_particles.tscn")
 ## Предмет окружения (стул, сундук, стол, факел...). Модель берётся из PropCatalog.
 ## Узел можно ставить в сцену уровня и править в инспекторе: положение считается
 ## из полей cell / rotation_steps / snap / elevation / offset, в том числе в редакторе.
@@ -36,6 +38,8 @@ extends Node3D
 	set(value):
 		offset = value
 		_rebuild()
+## Сохранять Transform узла для точной ручной расстановки; блокировка считается от него.
+@export var use_manual_transform := false
 ## Переопределить блокировку хода из каталога: -1 — как в каталоге, 0 — нет, 1 — да.
 @export_range(-1, 1) var blocks_override := -1:
 	set(value):
@@ -43,7 +47,6 @@ extends Node3D
 		_rebuild()
 
 var _footprint := Vector2i.ONE  # уже с учётом поворота
-
 
 static func create(prop_id_: String, cell_: Vector2i, steps := 0, options := {}) -> Prop:
 	var prop := Prop.new()
@@ -70,10 +73,19 @@ func blocks_movement() -> bool:
 
 
 func occupied_cells() -> Array[Vector2i]:
+	var origin := cell
+	var footprint := _footprint
+	if use_manual_transform and not snap:
+		var base: Vector2i = PropCatalog.entry(prop_id)["footprint"]
+		var manual_steps := posmod(roundi(rotation.y / (PI * 0.5)), 4)
+		footprint = Vector2i(base.y, base.x) if manual_steps % 2 == 1 else base
+		var center := Vector2(global_position.x, global_position.z) / BoardGrid.CELL_SIZE
+		var half_span := Vector2(footprint - Vector2i.ONE) * 0.5
+		origin = Vector2i(roundi(center.x - half_span.x), roundi(center.y - half_span.y))
 	var cells: Array[Vector2i] = []
-	for x in _footprint.x:
-		for y in _footprint.y:
-			cells.append(cell + Vector2i(x, y))
+	for x in footprint.x:
+		for y in footprint.y:
+			cells.append(origin + Vector2i(x, y))
 	return cells
 
 
@@ -82,14 +94,15 @@ func register(grid: BoardGrid) -> void:
 	if not blocks_movement():
 		return
 	for occupied in occupied_cells():
-		if not grid.is_walkable(occupied):
-			push_warning("Prop %s at %s overlaps a wall, another prop or has no floor" % [prop_id, occupied])
+		if not grid.has_floor(occupied) or grid.has_wall(occupied):
+			push_warning("Prop %s at %s overlaps a wall or has no floor" % [prop_id, occupied])
 		grid.add_blocker(occupied)
 
 
 func _rebuild() -> void:
 	if not is_inside_tree() or prop_id.is_empty():
 		return
+	var saved_transform := transform
 	for child in get_children():
 		remove_child(child)
 		child.queue_free()
@@ -112,6 +125,8 @@ func _rebuild() -> void:
 
 	rotation.y = rotation_steps * PI * 0.5
 	position = center + Basis(Vector3.UP, rotation.y) * shift
+	if use_manual_transform:
+		transform = saved_transform
 
 	if entry.has("light"):
 		_add_light(entry["light"])
@@ -130,15 +145,7 @@ func _add_light(spec: Dictionary) -> void:
 	var light_position: Vector3 = spec["offset"]
 	var flame_radius: float = spec.get("flame", 0.0)
 	if flame_radius > 0.0:
-		var flame := SphereMesh.new()
-		flame.radius = flame_radius
-		flame.height = flame_radius * 2.4
-		var flame_node := MeshInstance3D.new()
-		flame_node.mesh = flame
-		flame_node.material_override = Mat.glow(color, 4.0)
-		flame_node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		flame_node.position = light_position
-		add_child(flame_node)
+		_add_fire_particles(light_position, flame_radius)
 
 	var light := OmniLight3D.new()
 	light.light_color = color
@@ -147,3 +154,10 @@ func _add_light(spec: Dictionary) -> void:
 	light.shadow_enabled = spec.get("shadow", false)
 	light.position = light_position
 	add_child(light)
+
+
+func _add_fire_particles(at: Vector3, radius: float) -> void:
+	var particles := FIRE_SCENE.instantiate() as CPUParticles3D
+	particles.position = at
+	particles.scale = Vector3.ONE * (radius / 0.07)
+	add_child(particles)

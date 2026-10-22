@@ -5,14 +5,13 @@ extends SceneTree
 
 const WIDTH := 14
 const HEIGHT := 10
-const FLOOR_THICKNESS := 0.2
-const WALL_HEIGHT := 1.0
 const OUT := "res://scenes/levels/tavern.tscn"
 
 var _root: Node3D
 var _floor: Node3D
 var _walls: Node3D
 var _props: Node3D
+var _tokens: Node3D
 
 
 func _init() -> void:
@@ -21,9 +20,8 @@ func _init() -> void:
 	_floor = _group("Floor")
 	_walls = _group("Walls")
 	_props = _group("Props")
+	_tokens = _group("Tokens")
 
-	var floor_materials := [Mat.solid(Color("4b505a"), 0.9), Mat.solid(Color("40444d"), 0.9)]
-	var wall_material := Mat.solid(Color("8c8279"), 0.85)
 	var wall_cells: Array[Vector2i] = []
 	for y in range(3, 7):
 		wall_cells.append(Vector2i(7, y))
@@ -32,17 +30,15 @@ func _init() -> void:
 		for y in HEIGHT:
 			var cell := Vector2i(x, y)
 			var is_wall := x == 0 or y == 0 or x == WIDTH - 1 or y == HEIGHT - 1 or cell in wall_cells
-			var world := Vector3(x, 0.0, y)
-			var tile := Mat.box(Vector3(1, FLOOR_THICKNESS, 1), world + Vector3(0, -FLOOR_THICKNESS * 0.5, 0),
-				floor_materials[posmod(x + y, 2)])
-			tile.name = "Floor_%d_%d" % [x, y]
-			_add(_floor, tile)
+			add_tile(_floor, TileCatalog.FLOOR, "floor_wood", cell, 0, posmod(x + y, 2))
 			if is_wall:
-				var wall := Mat.box(Vector3(1, WALL_HEIGHT, 1), world + Vector3(0, WALL_HEIGHT * 0.5, 0), wall_material)
-				wall.name = "Wall_%d_%d" % [x, y]
-				_add(_walls, wall)
+				if y == 0 or y == HEIGHT - 1:
+					add_tile(_walls, TileCatalog.WALL, "wall_stone", cell, 0)
+				if x == 0 or x == WIDTH - 1 or cell in wall_cells:
+					add_tile(_walls, TileCatalog.WALL, "wall_stone", cell, 1)
 
 	_furnish_tavern()
+	DemoLevel.populate(_tokens, _root)
 
 	var scene := PackedScene.new()
 	scene.pack(_root)
@@ -68,6 +64,12 @@ func add_prop(prop_id: String, cell: Vector2i, rotation_steps := 0, options := {
 	var prop := Prop.create(prop_id, cell, rotation_steps, options)
 	_add(_props, prop)
 	prop.name = "%s_%d_%d" % [prop_id, cell.x, cell.y]
+
+
+func add_tile(parent: Node, kind: int, model_id: String, cell: Vector2i, rotation_steps := 0, variant := 0) -> void:
+	var tile := Tile.create(kind, model_id, cell, rotation_steps, variant)
+	tile.name = "%s_%d_%d_%d" % [model_id, cell.x, cell.y, rotation_steps]
+	_add(parent, tile)
 
 
 func _furnish_tavern() -> void:

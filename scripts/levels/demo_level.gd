@@ -1,20 +1,27 @@
 class_name DemoLevel
 extends RefCounted
-## Демо-расстановка токенов. Пол, стены и мебель лежат в сцене scenes/levels/tavern.tscn.
+## Исходная расстановка токенов для одноразового генератора tavern.tscn.
 
 
-static func spawn_tokens(dungeon: Dungeon) -> void:
-	dungeon.add_token(_player("Aria", Color("3b82f6")), Vector2i(2, 2))
+static func populate(parent: Node3D, scene_owner: Node) -> void:
+	_add(parent, scene_owner, _player("Aria", Color("3b82f6")), Vector2i(2, 2))
 	var dal := _player("Dal Dayneris", Color("3b82f6"))
 	dal.model_scene = load("res://assets/models/dal_dayneris.glb")
-	dungeon.add_token(dal, Vector2i(3, 3))
+	_add(parent, scene_owner, dal, Vector2i(3, 3))
 	var maximir := _player("Maximir", Color("a855f7"))
 	maximir.model_scene = load("res://assets/models/maximir.glb")
-	dungeon.add_token(maximir, Vector2i(2, 6))
-	dungeon.add_token(_player("Borin", Color("22c55e")), Vector2i(2, 4))
-	dungeon.add_token(_mob("Goblin", Color("ef4444"), 3), Vector2i(10, 6))
-	dungeon.add_token(_mob("Goblin", Color("ef4444"), 3), Vector2i(11, 7))
-	dungeon.add_token(_mob("Ogre", Color("f97316"), 4), Vector2i(10, 4))
+	_add(parent, scene_owner, maximir, Vector2i(5, 7))
+	_add(parent, scene_owner, _player("Borin", Color("22c55e")), Vector2i(2, 4))
+	_add(parent, scene_owner, _mob("Goblin", Color("ef4444"), 3), Vector2i(10, 6))
+	_add(parent, scene_owner, _mob("Goblin", Color("ef4444"), 3), Vector2i(11, 7))
+	_add(parent, scene_owner, _mob("Ogre", Color("f97316"), 4), Vector2i(10, 4))
+
+
+static func _add(parent: Node3D, scene_owner: Node, token: Token, cell: Vector2i) -> void:
+	token.name = token.display_name.replace(" ", "")
+	token.cell = cell
+	parent.add_child(token)
+	token.owner = scene_owner
 
 
 

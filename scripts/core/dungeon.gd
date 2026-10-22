@@ -4,9 +4,6 @@ extends Node3D
 ## Любое изменение мира проходит через методы этого узла — это единая точка, куда
 ## позже подключится сеть (клиент шлёт запрос, сервер вызывает request_move()).
 
-const FLOOR_THICKNESS := 0.2
-const WALL_HEIGHT := 1.0
-
 @export var level: PackedScene
 
 @onready var grid: BoardGrid = $Grid
@@ -19,12 +16,6 @@ const WALL_HEIGHT := 1.0
 @onready var rig: CameraRig = $CameraRig
 @onready var hud: Hud = $Hud
 
-var _floor_materials: Array[Material] = [
-	Mat.solid(Color("4b505a"), 0.9), Mat.solid(Color("40444d"), 0.9),
-]
-var _wall_material := Mat.solid(Color("8c8279"), 0.85)
-
-
 func _ready() -> void:
 	highlights.grid = grid
 	controller.setup(self, grid, highlights, rig)
@@ -32,7 +23,6 @@ func _ready() -> void:
 
 	if level:
 		_load_level(level.instantiate())
-	DemoLevel.spawn_tokens(self)
 
 	var rect := grid.used_rect()
 	var center := grid.cell_to_world(rect.position) + grid.cell_to_world(rect.size - Vector2i.ONE) * 0.5
@@ -44,20 +34,18 @@ func _ready() -> void:
 func add_floor(cell: Vector2i) -> void:
 	if grid.has_floor(cell):
 		return
-	grid.add_floor(cell)
-	var material := _floor_materials[posmod(cell.x + cell.y, 2)]  # шахматный узор
-	var size := Vector3(BoardGrid.CELL_SIZE, FLOOR_THICKNESS, BoardGrid.CELL_SIZE)
-	var tile := Mat.box(size, grid.cell_to_world(cell) + Vector3(0, -FLOOR_THICKNESS * 0.5, 0), material)
+	var tile := Tile.create(TileCatalog.FLOOR, "floor_stone", cell, 0, posmod(cell.x + cell.y, 2))
 	floor_root.add_child(tile)
+	tile.register(grid)
 
 
-func add_wall(cell: Vector2i) -> void:
+func add_wall(cell: Vector2i, rotation_steps := 0) -> void:
 	add_floor(cell)
 	if grid.has_wall(cell):
 		return
-	grid.add_wall(cell)
-	var size := Vector3(BoardGrid.CELL_SIZE, WALL_HEIGHT, BoardGrid.CELL_SIZE)
-	wall_root.add_child(Mat.box(size, grid.cell_to_world(cell) + Vector3(0, WALL_HEIGHT * 0.5, 0), _wall_material))
+	var tile := Tile.create(TileCatalog.WALL, "wall_stone", cell, rotation_steps)
+	wall_root.add_child(tile)
+	tile.register(grid)
 
 
 func add_prop(prop_id: String, cell: Vector2i, rotation_steps := 0, options := {}) -> Prop:
@@ -67,32 +55,69 @@ func add_prop(prop_id: String, cell: Vector2i, rotation_steps := 0, options := {
 	return prop
 
 
-## Сцена уровня (редактируется в редакторе) — корень с узлами Floor, Walls, Props.
-## Клетки пола и стен берутся из положения плиток, пропы блокируют свои клетки.
+## Сцена уровня (редактируется в редакторе) — корень с узлами Floor, Walls, Props, Tokens.
+## Tile сам регистрирует тип и блокировку; старые Node3D читаются по позиции для совместимости.
 func _load_level(level_root: Node3D) -> void:
 	for tile: Node3D in level_root.get_node("Floor").get_children():
-		grid.add_floor(grid.world_to_cell(tile.position))
+		if tile is Tile:
+			tile.register(grid)
+		else:
+			grid.add_floor(grid.world_to_cell(tile.position))
 	for tile: Node3D in level_root.get_node("Walls").get_children():
-		grid.add_wall(grid.world_to_cell(tile.position))
+		if tile is Tile:
+			tile.register(grid)
+		else:
+			grid.add_wall(grid.world_to_cell(tile.position))
 	add_child(level_root)
 	for prop: Node in level_root.get_node("Props").get_children():
 		if prop is Prop:
 			prop.register(grid)
+	var level_tokens := level_root.get_node_or_null("Tokens")
+	if level_tokens:
+		for child: Node in level_tokens.get_children():
+			if child is Token:
+				level_tokens.remove_child(child)
+				add_token(child, child.cell)
 
 
 func add_token(token: Token, cell: Vector2i) -> void:
+	if not grid.is_free(cell):
+		push_error("Cannot add token %s to unavailable cell %s" % [token.display_name, cell])
+		return
 	token_root.add_child(token)
-	token.place(grid, cell)
+	if not token.place(grid, cell):
+		token_root.remove_child(token)
+		push_error("Could not register token %s at %s" % [token.display_name, cell])
 
 
 # --- Действия --------------------------------------------------------------
 
 ## Двигает токен в пределах его радиуса. Использовать через await.
 func request_move(token: Token, target: Vector2i) -> bool:
-	if token.is_moving or target == token.cell:
+	if grid.get_occupant(token.cell) != token or token.is_moving or target == token.cell:
 		return false
 	var reach := grid.reachable(token.cell, token.move_radius)
 	if not reach.has(target):
 		return false
-	await token.move_along(grid.path_to(reach, target))
+	if not await token.move_along(grid.path_to(reach, target)):
+		return false
+	var opponent := _nearest_adjacent_opponent(token)
+	if opponent != null:
+		await token.face_cell(opponent.cell)
 	return true
+
+
+func _nearest_adjacent_opponent(token: Token) -> Token:
+	var nearest: Token
+	var nearest_distance := INF
+	for candidate: Token in grid.occupants():
+		if candidate == token or candidate.team == token.team:
+			continue
+		var delta := candidate.cell - token.cell
+		if absi(delta.x) > 1 or absi(delta.y) > 1:
+			continue
+		var distance := delta.length_squared()
+		if distance < nearest_distance:
+			nearest = candidate
+			nearest_distance = distance
+	return nearest

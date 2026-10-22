@@ -1,3 +1,4 @@
+@tool
 class_name GlbTokenModel
 extends TokenModel
 ## Визуал токена из импортированной модели (.glb / PackedScene).

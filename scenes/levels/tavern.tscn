@@ -1625,12 +1625,6 @@ use_manual_transform = true
 
 [node name="Tokens" type="Node3D" parent="." unique_id=1198547110]
 
-[node name="Aria" parent="Tokens" unique_id=921816623 instance=ExtResource("3_token")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0, 2)
-display_name = "Aria"
-body_color = Color(0.231373, 0.509804, 0.964706, 1)
-cell = Vector2i(2, 2)
-
 [node name="DalDayneris" parent="Tokens" unique_id=567201149 instance=ExtResource("3_token")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3, 0, 3)
 display_name = "Dal Dayneris"
@@ -1638,17 +1632,12 @@ body_color = Color(0.231373, 0.509804, 0.964706, 1)
 model_scene = ExtResource("4_dal")
 cell = Vector2i(3, 3)
 
-[node name="Borin" parent="Tokens" unique_id=1979283554 instance=ExtResource("3_token")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0, 4)
-display_name = "Borin"
-body_color = Color(0.133333, 0.772549, 0.368627, 1)
-cell = Vector2i(2, 4)
-
 [node name="Maximir" parent="Tokens" unique_id=2037189816 instance=ExtResource("3_token")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5, 0, 7)
 display_name = "Maximir"
 body_color = Color(0.658824, 0.333333, 0.968627, 1)
 model_scene = ExtResource("5_maximir")
+attack_range = 6
 cell = Vector2i(5, 7)
 
 [node name="GoblinA" parent="Tokens" unique_id=1630335939 instance=ExtResource("3_token")]
@@ -1667,6 +1656,7 @@ team = 1
 shape = 1
 body_color = Color(0.937255, 0.266667, 0.266667, 1)
 move_radius = 3
+attack_range = 6
 cell = Vector2i(11, 7)
 
 [node name="Ogre" parent="Tokens" unique_id=697726989 instance=ExtResource("3_token")]

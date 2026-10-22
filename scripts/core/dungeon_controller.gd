@@ -1,7 +1,7 @@
 class_name DungeonController
 extends Node
 ## Превращает клики мыши в команды. Сама мир не меняет — только выбирает токен,
-## показывает радиус движения и просит Dungeon выполнить ход.
+## показывает радиус движения и просит Dungeon выполнить ход или атаку.
 ## Экран → клетка: луч из камеры пересекается с плоскостью пола (y = 0).
 
 const TOKEN_PICK_RADIUS := 0.4
@@ -72,6 +72,17 @@ func _pick_cell(screen_pos: Vector2) -> Variant:
 
 func _on_cell_clicked(cell: Vector2i) -> void:
 	var occupant := _grid.get_occupant(cell)
+	if _selected != null and occupant != null and occupant != _selected \
+			and _dungeon.can_attack(_selected, occupant):
+		var attacker := _selected
+		_busy = true
+		_highlights.clear()
+		_rig.focus_on((attacker.global_position + occupant.global_position) * 0.5)
+		await _dungeon.request_attack(attacker, occupant)
+		_busy = false
+		if _selected == attacker:
+			_select(attacker)
+		return
 	if occupant != null and Permissions.can_control(role, occupant.team):
 		_select(occupant)
 		return

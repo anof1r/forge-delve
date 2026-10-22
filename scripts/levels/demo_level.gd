@@ -4,16 +4,17 @@ extends RefCounted
 
 
 static func populate(parent: Node3D, scene_owner: Node) -> void:
-	_add(parent, scene_owner, _player("Aria", Color("3b82f6")), Vector2i(2, 2))
 	var dal := _player("Dal Dayneris", Color("3b82f6"))
 	dal.model_scene = load("res://assets/models/dal_dayneris.glb")
 	_add(parent, scene_owner, dal, Vector2i(3, 3))
 	var maximir := _player("Maximir", Color("a855f7"))
 	maximir.model_scene = load("res://assets/models/maximir.glb")
+	maximir.attack_range = 6
 	_add(parent, scene_owner, maximir, Vector2i(5, 7))
-	_add(parent, scene_owner, _player("Borin", Color("22c55e")), Vector2i(2, 4))
 	_add(parent, scene_owner, _mob("Goblin", Color("ef4444"), 3), Vector2i(10, 6))
-	_add(parent, scene_owner, _mob("Goblin", Color("ef4444"), 3), Vector2i(11, 7))
+	var goblin_archer := _mob("Goblin", Color("ef4444"), 3)
+	goblin_archer.attack_range = 6
+	_add(parent, scene_owner, goblin_archer, Vector2i(11, 7))
 	_add(parent, scene_owner, _mob("Ogre", Color("f97316"), 4), Vector2i(10, 4))
 
 

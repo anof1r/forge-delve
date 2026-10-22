@@ -2,7 +2,7 @@ class_name Dungeon
 extends Node3D
 ## Корень игровой карты и «авторитет» над ней: создание контента и валидация ходов.
 ## Любое изменение мира проходит через методы этого узла — это единая точка, куда
-## позже подключится сеть (клиент шлёт запрос, сервер вызывает request_move()).
+## позже подключится сеть (клиент шлёт запрос, сервер вызывает request_move/request_attack).
 
 @export var level: PackedScene
 
@@ -94,7 +94,8 @@ func add_token(token: Token, cell: Vector2i) -> void:
 
 ## Двигает токен в пределах его радиуса. Использовать через await.
 func request_move(token: Token, target: Vector2i) -> bool:
-	if grid.get_occupant(token.cell) != token or token.is_moving or target == token.cell:
+	if grid.get_occupant(token.cell) != token or token.is_moving or token.is_attacking \
+			or token.is_reacting or target == token.cell:
 		return false
 	var reach := grid.reachable(token.cell, token.move_radius)
 	if not reach.has(target):
@@ -104,6 +105,36 @@ func request_move(token: Token, target: Vector2i) -> bool:
 	var opponent := _nearest_adjacent_opponent(token)
 	if opponent != null:
 		await token.face_cell(opponent.cell)
+	return true
+
+
+func can_attack(attacker: Token, target: Token) -> bool:
+	return _attack_kind(attacker, target) >= 0
+
+
+func _attack_kind(attacker: Token, target: Token) -> int:
+	if attacker == null or target == null or attacker == target:
+		return -1
+	if grid.get_occupant(attacker.cell) != attacker or grid.get_occupant(target.cell) != target:
+		return -1
+	if attacker.is_moving or attacker.is_attacking or attacker.is_reacting \
+			or target.is_moving or target.is_attacking or target.is_reacting:
+		return -1
+	var delta := target.cell - attacker.cell
+	var distance := maxi(absi(delta.x), absi(delta.y))
+	if distance == 1:
+		return Token.AttackKind.MELEE
+	if distance <= attacker.attack_range:
+		return Token.AttackKind.RANGED
+	return -1
+
+
+## Валидирует и проигрывает атаку. Урон и здоровье будут добавлены поверх этой точки авторитета.
+func request_attack(attacker: Token, target: Token) -> bool:
+	var attack_kind := _attack_kind(attacker, target)
+	if attack_kind < 0:
+		return false
+	await attacker.play_attack(target, token_root, attack_kind as Token.AttackKind)
 	return true
 
 

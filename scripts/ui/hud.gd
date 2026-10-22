@@ -19,7 +19,7 @@ func _ready() -> void:
 	_button.pressed.connect(_toggle_role)
 	box.add_child(_button)
 	var hint := Label.new()
-	hint.text = "ЛКМ — выбрать/идти, ПКМ/Esc — снять выбор, колесо — зум, СКМ — двигать камеру"
+	hint.text = "ЛКМ — выбрать/идти · ПКМ/Esc — снять выбор · СКМ — вращать · Shift+СКМ — двигать · Q/E — поворот · колесо — зум"
 	box.add_child(hint)
 	_refresh()
 

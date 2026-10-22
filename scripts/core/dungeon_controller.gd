@@ -1,23 +1,29 @@
 class_name DungeonController
-extends Node2D
+extends Node
 ## Превращает клики мыши в команды. Сама мир не меняет — только выбирает токен,
 ## показывает радиус движения и просит Dungeon выполнить ход.
-## Наследует Node2D только ради get_global_mouse_position().
+## Экран → клетка: луч из камеры пересекается с плоскостью пола (y = 0).
+
+const TOKEN_PICK_RADIUS := 0.4
 
 var role: Permissions.Role = Permissions.Role.DM
 
 var _dungeon: Dungeon
-var _grid: IsoGrid
+var _grid: BoardGrid
 var _highlights: CellHighlighter
+var _rig: CameraRig
+var _camera: Camera3D
 var _selected: Token
 var _reach: Dictionary = {}
 var _busy := false
 
 
-func setup(dungeon: Dungeon, grid: IsoGrid, highlights: CellHighlighter) -> void:
+func setup(dungeon: Dungeon, grid: BoardGrid, highlights: CellHighlighter, rig: CameraRig) -> void:
 	_dungeon = dungeon
 	_grid = grid
 	_highlights = highlights
+	_rig = rig
+	_camera = rig.camera
 
 
 func set_role(new_role: Permissions.Role) -> void:
@@ -30,11 +36,38 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if event is InputEventMouseButton and event.pressed:
 		if event.button_index == MOUSE_BUTTON_LEFT:
-			_on_cell_clicked(_grid.world_to_cell(get_global_mouse_position()))
+			var cell: Variant = _pick_cell(event.position)
+			if cell != null:
+				_on_cell_clicked(cell)
 		elif event.button_index == MOUSE_BUTTON_RIGHT:
 			_deselect()
 	elif event.is_action_pressed("ui_cancel"):
 		_deselect()
+
+
+## Клетка под курсором. Сначала ищем токен лучом (чтобы можно было кликнуть по голове
+## высокой модели), затем — пересечение с полом.
+func _pick_cell(screen_pos: Vector2) -> Variant:
+	var origin := _camera.project_ray_origin(screen_pos)
+	var direction := _camera.project_ray_normal(screen_pos)
+
+	var best: Token = null
+	var best_distance := INF
+	for token: Token in _grid.occupants():
+		var center := token.pick_center()
+		var closest := Geometry3D.get_closest_point_to_segment_uncapped(center, origin, origin + direction)
+		if closest.distance_to(center) <= TOKEN_PICK_RADIUS:
+			var along := origin.distance_to(closest)
+			if along < best_distance:
+				best_distance = along
+				best = token
+	if best != null:
+		return best.cell
+
+	var hit: Variant = Plane(Vector3.UP, 0.0).intersects_ray(origin, direction)
+	if hit == null:
+		return null
+	return _grid.world_to_cell(hit)
 
 
 func _on_cell_clicked(cell: Vector2i) -> void:
@@ -46,7 +79,9 @@ func _on_cell_clicked(cell: Vector2i) -> void:
 		var mover := _selected
 		_busy = true
 		_highlights.clear()
+		_rig.follow(mover)
 		await _dungeon.request_move(mover, cell)
+		_rig.stop_following()
 		_busy = false
 		if _selected == mover:
 			_select(mover)
@@ -59,6 +94,7 @@ func _select(token: Token) -> void:
 		_selected.set_selected(false)
 	_selected = token
 	token.set_selected(true)
+	_rig.focus_on(token.global_position)
 	_reach = _grid.reachable(token.cell, token.move_radius)
 	var cells: Array[Vector2i] = []
 	for cell: Vector2i in _reach.keys():

@@ -1,34 +1,64 @@
 [gd_scene format=3]
 
+[ext_resource type="PackedScene" path="res://scenes/levels/tavern.tscn" id="99_level"]
 [ext_resource type="Script" path="res://scripts/core/dungeon.gd" id="1_dungeon"]
-[ext_resource type="Script" path="res://scripts/core/iso_grid.gd" id="2_grid"]
+[ext_resource type="Script" path="res://scripts/core/board_grid.gd" id="2_grid"]
 [ext_resource type="Script" path="res://scripts/ui/cell_highlighter.gd" id="3_highlighter"]
 [ext_resource type="Script" path="res://scripts/core/dungeon_controller.gd" id="4_controller"]
-[ext_resource type="Script" path="res://scripts/ui/camera_controller.gd" id="5_camera"]
+[ext_resource type="Script" path="res://scripts/ui/camera_rig.gd" id="5_rig"]
 [ext_resource type="Script" path="res://scripts/ui/hud.gd" id="6_hud"]
+[ext_resource type="Script" path="res://scripts/core/table_surface.gd" id="7_table"]
 
-[node name="Dungeon" type="Node2D"]
+[sub_resource type="Environment" id="Environment_dark"]
+background_mode = 1
+background_color = Color(0.02, 0.02, 0.035, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.4, 0.43, 0.6, 1)
+ambient_light_energy = 0.7
+tonemap_mode = 2
+glow_enabled = true
+glow_intensity = 0.8
+glow_bloom = 0.1
+
+[node name="Dungeon" type="Node3D"]
 script = ExtResource("1_dungeon")
+level = ExtResource("99_level")
 
-[node name="IsoGrid" type="Node" parent="."]
+[node name="Grid" type="Node" parent="."]
 script = ExtResource("2_grid")
 
-[node name="Floor" type="TileMapLayer" parent="."]
+[node name="Table" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.2, 0)
+script = ExtResource("7_table")
 
-[node name="Highlights" type="Node2D" parent="."]
+[node name="Floor" type="Node3D" parent="."]
+
+[node name="Walls" type="Node3D" parent="."]
+
+[node name="Props" type="Node3D" parent="."]
+
+[node name="Tokens" type="Node3D" parent="."]
+
+[node name="Highlights" type="Node3D" parent="."]
 script = ExtResource("3_highlighter")
 
-[node name="World" type="Node2D" parent="."]
-y_sort_enabled = true
-
-[node name="Walls" type="TileMapLayer" parent="World"]
-y_sort_enabled = true
-
-[node name="Controller" type="Node2D" parent="."]
+[node name="Controller" type="Node" parent="."]
 script = ExtResource("4_controller")
 
-[node name="Camera2D" type="Camera2D" parent="."]
-script = ExtResource("5_camera")
+[node name="CameraRig" type="Node3D" parent="."]
+script = ExtResource("5_rig")
+
+[node name="Camera3D" type="Camera3D" parent="CameraRig"]
+fov = 45.0
+
+[node name="Moonlight" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.866, -0.41, 0.287, 0, 0.574, 0.819, -0.5, -0.709, 0.497, 0, 6, 0)
+light_color = Color(0.6, 0.68, 1, 1)
+light_energy = 0.35
+shadow_enabled = true
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_dark")
 
 [node name="Hud" type="CanvasLayer" parent="."]
 script = ExtResource("6_hud")

@@ -1,9 +1,11 @@
-class_name IsoGrid
+@tool
+class_name BoardGrid
 extends Node
 ## Единственный источник правды о геометрии и проходимости карты.
-## Всё остальное (токены, пропы, ввод) общается с картой только через него,
-## поэтому тайлсет, форму сетки или правила движения можно менять в одном месте.
+## Не зависит от того, как карта нарисована (2D, 3D): хранит только данные клеток.
+## Клетка (x, y) лежит в 3D в точке (x, 0, y) * CELL_SIZE.
 
+const CELL_SIZE := 1.0
 const ALLOW_DIAGONALS := true
 
 const _ORTHOGONAL: Array[Vector2i] = [
@@ -13,43 +15,57 @@ const _DIAGONAL: Array[Vector2i] = [
 	Vector2i(1, 1), Vector2i(1, -1), Vector2i(-1, 1), Vector2i(-1, -1),
 ]
 
-var tile_size: Vector2:
-	get:
-		return Vector2(_floor.tile_set.tile_size)
-
-var _floor: TileMapLayer
-var _walls: TileMapLayer
+var _floor: Dictionary = {}  # Vector2i -> true
+var _walls: Dictionary = {}  # Vector2i -> true
 var _blockers: Dictionary = {}  # Vector2i -> true (пропы, закрывающие клетку)
 var _occupants: Dictionary = {}  # Vector2i -> Token
 
 
-func setup(floor_layer: TileMapLayer, wall_layer: TileMapLayer) -> void:
-	_floor = floor_layer
-	_walls = wall_layer
-
-
 # --- Геометрия -------------------------------------------------------------
 
-func cell_to_world(cell: Vector2i) -> Vector2:
-	return _floor.to_global(_floor.map_to_local(cell))
+func cell_to_world(cell: Vector2i) -> Vector3:
+	return Vector3(cell.x, 0.0, cell.y) * CELL_SIZE
 
 
-func world_to_cell(world_pos: Vector2) -> Vector2i:
-	return _floor.local_to_map(_floor.to_local(world_pos))
+func world_to_cell(world_pos: Vector3) -> Vector2i:
+	return Vector2i(roundi(world_pos.x / CELL_SIZE), roundi(world_pos.z / CELL_SIZE))
 
 
 func used_rect() -> Rect2i:
-	return _floor.get_used_rect()
+	var rect := Rect2i()
+	var first := true
+	for cell: Vector2i in _floor.keys():
+		if first:
+			rect = Rect2i(cell, Vector2i.ONE)
+			first = false
+		else:
+			rect = rect.expand(cell).expand(cell + Vector2i.ONE)
+	return rect
+
+
+# --- Данные карты ----------------------------------------------------------
+
+func add_floor(cell: Vector2i) -> void:
+	_floor[cell] = true
+
+
+func add_wall(cell: Vector2i) -> void:
+	_floor[cell] = true
+	_walls[cell] = true
+
+
+func has_floor(cell: Vector2i) -> bool:
+	return _floor.has(cell)
+
+
+func has_wall(cell: Vector2i) -> bool:
+	return _walls.has(cell)
 
 
 # --- Проходимость ----------------------------------------------------------
 
-func has_floor(cell: Vector2i) -> bool:
-	return _floor.get_cell_source_id(cell) != -1
-
-
 func is_walkable(cell: Vector2i) -> bool:
-	return has_floor(cell) and _walls.get_cell_source_id(cell) == -1 and not _blockers.has(cell)
+	return has_floor(cell) and not _walls.has(cell) and not _blockers.has(cell)
 
 
 func is_free(cell: Vector2i) -> bool:
@@ -68,6 +84,10 @@ func remove_blocker(cell: Vector2i) -> void:
 
 func get_occupant(cell: Vector2i) -> Token:
 	return _occupants.get(cell)
+
+
+func occupants() -> Array:
+	return _occupants.values()
 
 
 func register_occupant(token: Token, cell: Vector2i) -> void:

@@ -4,11 +4,11 @@
 [ext_resource type="Script" path="res://scripts/entities/token_base.gd" id="2_base"]
 [ext_resource type="Script" path="res://scripts/entities/placeholder_token_model.gd" id="3_model"]
 
-[node name="Token" type="Node2D"]
+[node name="Token" type="Node3D"]
 script = ExtResource("1_token")
 
-[node name="Base" type="Node2D" parent="."]
+[node name="Base" type="Node3D" parent="."]
 script = ExtResource("2_base")
 
-[node name="Model" type="Node2D" parent="."]
+[node name="Model" type="Node3D" parent="."]
 script = ExtResource("3_model")

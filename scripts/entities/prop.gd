@@ -1,33 +1,149 @@
+@tool
 class_name Prop
-extends Node2D
-## Предмет окружения (сундук, стол, стул). Заглушка рисуется кодом; позже
-## _draw() заменяется на Sprite2D, а логика (клетка, блокировка) остаётся прежней.
+extends Node3D
+## Предмет окружения (стул, сундук, стол, факел...). Модель берётся из PropCatalog.
+## Узел можно ставить в сцену уровня и править в инспекторе: положение считается
+## из полей cell / rotation_steps / snap / elevation / offset, в том числе в редакторе.
+##
+## Поворот rotation_steps: 0 — «лицом» к +Z (юг, растёт y клетки), 1 — к +X (восток),
+## 2 — к -Z (север), 3 — к -X (запад).
 
-enum Kind { CHEST, TABLE, CHAIR }
+@export var prop_id := "":
+	set(value):
+		prop_id = value
+		_rebuild()
+## Левый верхний угол занимаемых клеток.
+@export var cell := Vector2i.ZERO:
+	set(value):
+		cell = value
+		_rebuild()
+@export_range(0, 3) var rotation_steps := 0:
+	set(value):
+		rotation_steps = posmod(value, 4)
+		_rebuild()
+## Прижать заднюю грань модели к стене с её стороны.
+@export var snap := false:
+	set(value):
+		snap = value
+		_rebuild()
+## Высота над полом (предметы на столе, настенные светильники).
+@export var elevation := 0.0:
+	set(value):
+		elevation = value
+		_rebuild()
+## Смещение внутри клетки в мировых единицах (x, z до поворота).
+@export var offset := Vector2.ZERO:
+	set(value):
+		offset = value
+		_rebuild()
+## Переопределить блокировку хода из каталога: -1 — как в каталоге, 0 — нет, 1 — да.
+@export_range(-1, 1) var blocks_override := -1:
+	set(value):
+		blocks_override = value
+		_rebuild()
 
-const _PRESETS := {
-	Kind.CHEST: {"footprint": 0.6, "height": 18.0, "color": Color("b8863b")},
-	Kind.TABLE: {"footprint": 0.9, "height": 26.0, "color": Color("8a5a35")},
-	Kind.CHAIR: {"footprint": 0.4, "height": 16.0, "color": Color("a06a40")},
-}
-
-@export var kind: Kind = Kind.CHEST
-@export var blocks_movement := true
-
-var cell := Vector2i.ZERO
-
-var _tile_size := Vector2(128, 64)
+var _footprint := Vector2i.ONE  # уже с учётом поворота
 
 
-func place(grid: IsoGrid, new_cell: Vector2i) -> void:
-	cell = new_cell
-	_tile_size = grid.tile_size
-	position = grid.cell_to_world(new_cell)
-	if blocks_movement:
-		grid.add_blocker(new_cell)
-	queue_redraw()
+static func create(prop_id_: String, cell_: Vector2i, steps := 0, options := {}) -> Prop:
+	var prop := Prop.new()
+	prop.name = prop_id_
+	prop.prop_id = prop_id_
+	prop.cell = cell_
+	prop.rotation_steps = steps
+	prop.snap = options.get("snap", false)
+	prop.elevation = options.get("elevation", 0.0)
+	prop.offset = options.get("offset", Vector2.ZERO)
+	if options.has("blocks"):
+		prop.blocks_override = 1 if options["blocks"] else 0
+	return prop
 
 
-func _draw() -> void:
-	var preset: Dictionary = _PRESETS[kind]
-	IsoDraw.draw_box(self, _tile_size, preset["footprint"], preset["height"], preset["color"])
+func _ready() -> void:
+	_rebuild()
+
+
+func blocks_movement() -> bool:
+	if blocks_override >= 0:
+		return blocks_override == 1
+	return PropCatalog.entry(prop_id)["blocks"]
+
+
+func occupied_cells() -> Array[Vector2i]:
+	var cells: Array[Vector2i] = []
+	for x in _footprint.x:
+		for y in _footprint.y:
+			cells.append(cell + Vector2i(x, y))
+	return cells
+
+
+## Закрывает занимаемые клетки для движения. Вызывает Dungeon при загрузке уровня.
+func register(grid: BoardGrid) -> void:
+	if not blocks_movement():
+		return
+	for occupied in occupied_cells():
+		if not grid.is_walkable(occupied):
+			push_warning("Prop %s at %s overlaps a wall, another prop or has no floor" % [prop_id, occupied])
+		grid.add_blocker(occupied)
+
+
+func _rebuild() -> void:
+	if not is_inside_tree() or prop_id.is_empty():
+		return
+	for child in get_children():
+		remove_child(child)
+		child.queue_free()
+
+	var entry := PropCatalog.entry(prop_id)
+	var base: Vector2i = entry["footprint"]
+	_footprint = Vector2i(base.y, base.x) if rotation_steps % 2 == 1 else base
+
+	var model := _load_model()
+	if model == null:
+		return
+	model.scale = Vector3.ONE * float(entry["scale"])
+	add_child(model)
+
+	var center := Vector3(cell.x, 0.0, cell.y) * BoardGrid.CELL_SIZE \
+		+ Vector3(_footprint.x - 1, 0.0, _footprint.y - 1) * BoardGrid.CELL_SIZE * 0.5
+	var shift := Vector3(offset.x, elevation, offset.y)
+	if snap:
+		shift.z += -base.y * BoardGrid.CELL_SIZE * 0.5 - ModelUtil.bounds(model).position.z
+
+	rotation.y = rotation_steps * PI * 0.5
+	position = center + Basis(Vector3.UP, rotation.y) * shift
+
+	if entry.has("light"):
+		_add_light(entry["light"])
+
+
+func _load_model() -> Node3D:
+	var path := PropCatalog.model_path(prop_id)
+	if not ResourceLoader.exists(path):
+		push_error("Prop model not found: " + path)
+		return null
+	return (load(path) as PackedScene).instantiate() as Node3D
+
+
+func _add_light(spec: Dictionary) -> void:
+	var color: Color = spec["color"]
+	var light_position: Vector3 = spec["offset"]
+	var flame_radius: float = spec.get("flame", 0.0)
+	if flame_radius > 0.0:
+		var flame := SphereMesh.new()
+		flame.radius = flame_radius
+		flame.height = flame_radius * 2.4
+		var flame_node := MeshInstance3D.new()
+		flame_node.mesh = flame
+		flame_node.material_override = Mat.glow(color, 4.0)
+		flame_node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		flame_node.position = light_position
+		add_child(flame_node)
+
+	var light := OmniLight3D.new()
+	light.light_color = color
+	light.light_energy = spec["energy"]
+	light.omni_range = spec["range"]
+	light.shadow_enabled = spec.get("shadow", false)
+	light.position = light_position
+	add_child(light)

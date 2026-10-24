@@ -56,6 +56,13 @@ const _SMALL := [
 	"Sword_Bronze", "Axe_Bronze", "Pickaxe_Bronze", "Whetstone", "Vase_2", "Vase_4",
 ]
 
+const _PREPARED := {
+	"Мебель": ["Table_Large", "Chair_1", "Stool", "Bench", "Bed_Twin1", "Bed_Twin2", "Bookcase_2", "Cabinet", "Nightstand_Shelf", "Shelf_Arch", "Shelf_Simple", "Workbench", "Workbench_Drawers"],
+	"Хранилище": ["Barrel", "Barrel_Apples", "Chest_Wood", "Crate_Wooden", "Crate_Metal", "Bag", "Pouch_Large"],
+	"Освещение": ["Torch_Metal", "Lantern_Wall", "CandleStick", "CandleStick_Triple", "CandleStick_Stand"],
+	"Декор": ["Mug", "Chalice", "Table_Plate", "Bottle_1", "SmallBottle", "SmallBottles_1", "Potion_1", "Potion_2", "Potion_4", "Book_5", "Book_7", "Book_Stack_1", "Book_Stack_2", "Coin_Pile", "Key_Gold", "Vase_2", "Vase_4"],
+}
+
 
 static func entry(prop_id: String) -> Dictionary:
 	var result := DEFAULTS.duplicate()
@@ -67,3 +74,15 @@ static func entry(prop_id: String) -> Dictionary:
 
 static func model_path(prop_id: String) -> String:
 	return DIR + prop_id + ".gltf"
+
+
+static func prepared_categories() -> Array[String]:
+	var result: Array[String] = []
+	result.assign(_PREPARED.keys())
+	return result
+
+
+static func prepared_ids(category: String) -> Array[String]:
+	var result: Array[String] = []
+	result.assign(_PREPARED.get(category, []))
+	return result

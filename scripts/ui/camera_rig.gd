@@ -1,10 +1,10 @@
 class_name CameraRig
 extends Node3D
 ## Орбитальная камера вокруг точки фокуса, как в настольной игре.
-## СКМ — вращать, Shift+СКМ — двигать, колесо — зум, Q/E — поворот на 45°.
+## СКМ — вращать, Space+ЛКМ или Shift+СКМ — двигать, колесо — зум, Q/E — поворот на 45°.
 
-const PITCH_MIN := deg_to_rad(-80.0)
-const PITCH_MAX := deg_to_rad(-25.0)
+const PITCH_MIN := deg_to_rad(-88.0)
+const PITCH_MAX := deg_to_rad(-10.0)
 const DIST_MIN := 4.0
 const DIST_MAX := 40.0
 const ZOOM_STEP := 1.1
@@ -24,7 +24,8 @@ var _pitch_target := _pitch
 var _distance_target := _distance
 var _focus_target := _focus
 
-var _dragging := false
+var _middle_dragging := false
+var _space_panning := false
 var _follow_target: Node3D
 
 
@@ -70,17 +71,28 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
 		match event.button_index:
 			MOUSE_BUTTON_WHEEL_UP:
+				stop_following()
 				_distance_target = clampf(_distance_target / ZOOM_STEP, DIST_MIN, DIST_MAX)
 			MOUSE_BUTTON_WHEEL_DOWN:
+				stop_following()
 				_distance_target = clampf(_distance_target * ZOOM_STEP, DIST_MIN, DIST_MAX)
 			MOUSE_BUTTON_MIDDLE:
-				_dragging = event.pressed
-	elif event is InputEventMouseMotion and _dragging:
-		if Input.is_key_pressed(KEY_SHIFT):
+				_middle_dragging = event.pressed
+				if event.pressed:
+					stop_following()
+			MOUSE_BUTTON_LEFT:
+				if Input.is_key_pressed(KEY_SPACE) or _space_panning:
+					_space_panning = event.pressed
+					if event.pressed:
+						stop_following()
+					get_viewport().set_input_as_handled()
+	elif event is InputEventMouseMotion and (_middle_dragging or _space_panning):
+		if _space_panning or Input.is_key_pressed(KEY_SHIFT):
 			_pan(event.relative)
 		else:
 			_yaw_target -= event.relative.x * ROTATE_SPEED
 			_pitch_target = clampf(_pitch_target - event.relative.y * ROTATE_SPEED, PITCH_MIN, PITCH_MAX)
+		get_viewport().set_input_as_handled()
 	elif event is InputEventKey and event.pressed and not event.echo:
 		if event.keycode == KEY_Q:
 			_yaw_target += SNAP_STEP
@@ -89,11 +101,15 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _pan(relative: Vector2) -> void:
-	var yaw_basis := Basis(Vector3.UP, _yaw)
-	var scale := _distance * 0.0015
-	_focus_target -= yaw_basis * Vector3.RIGHT * relative.x * scale
-	_focus_target += yaw_basis * Vector3.FORWARD * relative.y * scale
+	var yaw_basis := Basis(Vector3.UP, _yaw_target)
+	var scale := _distance_target * 0.0015
+	var movement := -(yaw_basis * Vector3.RIGHT) * relative.x * scale \
+		+ yaw_basis * Vector3.FORWARD * relative.y * scale
+	_focus += movement
+	_focus_target += movement
+	_focus.y = 0.0
 	_focus_target.y = 0.0
+	_apply()
 
 
 func _apply() -> void:

@@ -19,6 +19,15 @@ var _floor: Dictionary = {}  # Vector2i -> true
 var _walls: Dictionary = {}  # Vector2i -> true
 var _blockers: Dictionary = {}  # Vector2i -> true (пропы, закрывающие клетку)
 var _occupants: Dictionary = {}  # Vector2i -> Token
+var _sight_segments: Array[PackedVector2Array] = []  # логические отрезки тонких стен
+
+
+func clear() -> void:
+	_floor.clear()
+	_walls.clear()
+	_blockers.clear()
+	_occupants.clear()
+	_sight_segments.clear()
 
 
 # --- Геометрия -------------------------------------------------------------
@@ -52,6 +61,20 @@ func add_floor(cell: Vector2i) -> void:
 func add_wall(cell: Vector2i) -> void:
 	_floor[cell] = true
 	_walls[cell] = true
+
+
+func add_sight_segment(first: Vector2, second: Vector2) -> void:
+	_sight_segments.append(PackedVector2Array([first, second]))
+
+
+func remove_floor(cell: Vector2i) -> void:
+	_floor.erase(cell)
+	_walls.erase(cell)
+	_blockers.erase(cell)
+
+
+func remove_wall(cell: Vector2i) -> void:
+	_walls.erase(cell)
 
 
 func has_floor(cell: Vector2i) -> bool:
@@ -148,6 +171,70 @@ func path_to(reach: Dictionary, target: Vector2i) -> Array[Vector2i]:
 		path.push_front(current)
 		current = reach[current]
 	return path
+
+
+## Проверяет линию между центрами клеток. Стены, блокирующие пропы и клетки
+## вне пола закрывают обзор. При точном проходе через угол проверяются обе
+## соседние клетки, поэтому стрелять через соприкасающиеся углы нельзя.
+func has_line_of_sight(from: Vector2i, to: Vector2i) -> bool:
+	if from == to:
+		return true
+	var from_point := Vector2(from.x, from.y) * CELL_SIZE
+	var to_point := Vector2(to.x, to.y) * CELL_SIZE
+	for segment: PackedVector2Array in _sight_segments:
+		if _segments_cross(from_point, to_point, segment[0], segment[1]):
+			return false
+	var delta := to - from
+	var step_x := signi(delta.x)
+	var step_y := signi(delta.y)
+	var count_x := absi(delta.x)
+	var count_y := absi(delta.y)
+	var passed_x := 0
+	var passed_y := 0
+	var current := from
+
+	while passed_x < count_x or passed_y < count_y:
+		var decision := (1 + 2 * passed_x) * count_y - (1 + 2 * passed_y) * count_x
+		if decision == 0:
+			var side_x := current + Vector2i(step_x, 0)
+			var side_y := current + Vector2i(0, step_y)
+			# Касание одного угла не перекрывает выстрел. Линия закрыта только
+			# когда обе стороны угла заняты — иначе это обычный обзор из-за угла.
+			var x_blocked := side_x != to and _blocks_sight(side_x)
+			var y_blocked := side_y != to and _blocks_sight(side_y)
+			if x_blocked and y_blocked:
+				return false
+			current += Vector2i(step_x, step_y)
+			passed_x += 1
+			passed_y += 1
+		elif decision < 0:
+			current.x += step_x
+			passed_x += 1
+		else:
+			current.y += step_y
+			passed_y += 1
+
+		if current != to and _blocks_sight(current):
+			return false
+	return true
+
+
+func _blocks_sight(cell: Vector2i) -> bool:
+	return not _floor.has(cell) or _blockers.has(cell)
+
+
+func _segments_cross(first: Vector2, second: Vector2, wall_first: Vector2, wall_second: Vector2) -> bool:
+	var ray := second - first
+	var wall := wall_second - wall_first
+	var divisor := ray.cross(wall)
+	if is_zero_approx(divisor):
+		return false
+	var offset := wall_first - first
+	var ray_amount := offset.cross(wall) / divisor
+	var wall_amount := offset.cross(ray) / divisor
+	const END_EPSILON := 0.001
+	return ray_amount > END_EPSILON and ray_amount < 1.0 - END_EPSILON \
+		and wall_amount > END_EPSILON and wall_amount < 1.0 - END_EPSILON
 
 
 func _steps() -> Array[Vector2i]:

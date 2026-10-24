@@ -24,6 +24,7 @@ const _ENTRIES := {
 		"scale": 0.5,
 		"blocks": true,
 		"offset": Vector3(0.0, 0.0, 0.055),
+		"exterior_corner": "wall_corner_exterior",
 	},
 	"wall_stone_door": {
 		"models": ["Wall_UnevenBrick_Door_Flat", "Wall_UnevenBrick_Door_Round"],
@@ -40,11 +41,13 @@ const _ENTRIES := {
 		"scale": 0.5,
 		"blocks": true,
 		"offset": Vector3(0.0, 0.0, 0.055),
+		"exterior_corner": "wall_corner_exterior",
 	},
 	"wall_plaster": {
 		"models": ["Wall_Plaster_Straight", "Wall_Plaster_WoodGrid"],
 		"scale": 0.5,
 		"blocks": true,
+		"exterior_corner": "wall_corner_exterior_wood",
 	},
 	"wall_corner_interior": {
 		"models": ["Corner_Interior_Small", "Corner_Interior_Big"],
@@ -53,6 +56,11 @@ const _ENTRIES := {
 	},
 	"wall_corner_exterior": {
 		"models": ["Corner_Exterior_Brick", "Corner_ExteriorWide_Brick"],
+		"scale": 0.5,
+		"blocks": true,
+	},
+	"wall_corner_exterior_wood": {
+		"models": ["Corner_Exterior_Wood", "Corner_ExteriorWide_Wood"],
 		"scale": 0.5,
 		"blocks": true,
 	},
@@ -76,3 +84,15 @@ static func model_name(model_id: String, variant: int, fallback_kind := FLOOR) -
 
 static func model_path(model_id: String, variant: int, fallback_kind := FLOOR) -> String:
 	return DIR + model_name(model_id, variant, fallback_kind) + ".gltf"
+
+
+static func exterior_corner_id(wall_id: String) -> String:
+	return str(entry(wall_id, WALL).get("exterior_corner", "wall_corner_exterior"))
+
+
+static func prepared_floor_ids() -> Array[String]:
+	return ["floor_stone", "floor_wood"]
+
+
+static func prepared_wall_ids() -> Array[String]:
+	return ["wall_stone", "wall_stone_door", "wall_stone_window", "wall_plaster"]

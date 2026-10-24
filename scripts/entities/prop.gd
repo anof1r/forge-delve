@@ -79,9 +79,7 @@ func occupied_cells() -> Array[Vector2i]:
 		var base: Vector2i = PropCatalog.entry(prop_id)["footprint"]
 		var manual_steps := posmod(roundi(rotation.y / (PI * 0.5)), 4)
 		footprint = Vector2i(base.y, base.x) if manual_steps % 2 == 1 else base
-		var center := Vector2(global_position.x, global_position.z) / BoardGrid.CELL_SIZE
-		var half_span := Vector2(footprint - Vector2i.ONE) * 0.5
-		origin = Vector2i(roundi(center.x - half_span.x), roundi(center.y - half_span.y))
+		origin = cell
 	var cells: Array[Vector2i] = []
 	for x in footprint.x:
 		for y in footprint.y:

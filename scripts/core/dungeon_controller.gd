@@ -31,6 +31,12 @@ func set_role(new_role: Permissions.Role) -> void:
 	_deselect()
 
 
+func set_enabled(value: bool) -> void:
+	process_mode = Node.PROCESS_MODE_INHERIT if value else Node.PROCESS_MODE_DISABLED
+	if not value:
+		_deselect()
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if _busy:
 		return

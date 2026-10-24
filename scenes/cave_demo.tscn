@@ -1,0 +1,37 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/dungeon.tscn" id="1"]
+[ext_resource type="PackedScene" path="res://scenes/levels/cave.tscn" id="2"]
+[ext_resource type="PackedScene" path="res://scenes/token.tscn" id="3"]
+[ext_resource type="PackedScene" path="res://assets/models/maximir.glb" id="4"]
+[ext_resource type="PackedScene" path="res://assets/models/dal_dayneris.glb" id="5"]
+
+[sub_resource type="Environment" id="CaveEnvironment"]
+background_mode = 1
+background_color = Color(0.025, 0.028, 0.035, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.65, 0.7, 0.8, 1)
+ambient_light_energy = 0.6
+tonemap_mode = 2
+ssao_enabled = true
+
+[node name="CaveDemo" instance=ExtResource("1")]
+level = ExtResource("2")
+
+[node name="Moonlight" parent="." index="9"]
+light_color = Color(1, 0.92, 0.8, 1)
+light_energy = 1.1
+
+[node name="WorldEnvironment" parent="." index="10"]
+environment = SubResource("CaveEnvironment")
+
+[node name="Maximir" parent="Tokens" instance=ExtResource("3")]
+display_name = "Maximir"
+attack_range = 6
+model_scene = ExtResource("4")
+cell = Vector2i(11, 11)
+
+[node name="DalDayneris" parent="Tokens" instance=ExtResource("3")]
+display_name = "Dal Dayneris"
+model_scene = ExtResource("5")
+cell = Vector2i(12, 11)
